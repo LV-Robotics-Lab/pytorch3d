@@ -37,7 +37,10 @@ jobs:
           cuda-cccl-12-1 \
           cuda-cudart-dev-12-1 \
           cuda-driver-dev-12-1 \
-          cuda-nvcc-12-1
+          cuda-nvcc-12-1 \
+          libcublas-dev-12-1 \
+          libcusolver-dev-12-1 \
+          libcusparse-dev-12-1
         echo "${CUDA_HOME}/bin" >> "${GITHUB_PATH}"
         "${CUDA_HOME}/bin/nvcc" --version
         test -f "${CUB_HOME}/cub/cub.cuh"
