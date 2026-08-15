@@ -21,8 +21,6 @@ import logging
 import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-
-from distutils.version import LooseVersion
 from typing import Any, Callable, ClassVar, Dict, Iterator, List, Optional, Tuple, Type
 
 import torch
@@ -222,7 +220,8 @@ class VoxelGridBase(ReplaceableBase, torch.nn.Module):
                 + "| 'bicubic' | 'linear' | 'area' | 'nearest-exact'"
             )
 
-        interpolate_has_antialias = LooseVersion(torch.__version__) >= "1.11"
+        # We assume PyTorch 1.11 and newer.
+        interpolate_has_antialias = True
 
         if antialias and not interpolate_has_antialias:
             warnings.warn("Antialiased interpolation requires PyTorch 1.11+; ignoring")
@@ -269,6 +268,7 @@ class VoxelGridBase(ReplaceableBase, torch.nn.Module):
                 for name, tensor in vars(grid_values_with_wanted_resolution).items()
             }
 
+        # pyre-fixme[29]: `Union[Tensor, Module]` is not a function.
         return self.values_type(**params), True
 
     def get_resolution_change_epochs(self) -> Tuple[int, ...]:
@@ -882,6 +882,7 @@ class VoxelGridModule(Configurable, torch.nn.Module):
             torch.Tensor of shape (..., n_features)
         """
         locator = self._get_volume_locator()
+        # pyre-fixme[29]: `Union[Tensor, Module]` is not a function.
         grid_values = self.voxel_grid.values_type(**self.params)
         # voxel grids operate with extra n_grids dimension, which we fix to one
         return self.voxel_grid.evaluate_world(points[None], grid_values, locator)[0]
@@ -895,6 +896,7 @@ class VoxelGridModule(Configurable, torch.nn.Module):
                 replace current parameters
         """
         if self.hold_voxel_grid_as_parameters:
+            # pyre-fixme[16]: `VoxelGridModule` has no attribute `params`.
             self.params = torch.nn.ParameterDict(
                 {
                     k: torch.nn.Parameter(val)
@@ -905,6 +907,7 @@ class VoxelGridModule(Configurable, torch.nn.Module):
         else:
             # Torch Module to hold parameters since they can only be registered
             # at object level.
+            # pyrefly: ignore [bad-assignment]
             self.params = _RegistratedBufferDict(vars(params))
 
     @staticmethod
@@ -945,6 +948,7 @@ class VoxelGridModule(Configurable, torch.nn.Module):
         Returns:
             True if parameter change has happened else False.
         """
+        # pyre-fixme[29]: `Union[Tensor, Module]` is not a function.
         grid_values = self.voxel_grid.values_type(**self.params)
         grid_values, change = self.voxel_grid.change_resolution(
             grid_values, epoch=epoch
@@ -992,16 +996,21 @@ class VoxelGridModule(Configurable, torch.nn.Module):
         """
         '''
         new_params = {}
+        # pyre-fixme[29]: `Union[(self: Tensor) -> Any, Tensor, Module]` is not a
+        #  function.
         for name in self.params:
             key = prefix + "params." + name
             if key in state_dict:
                 new_params[name] = torch.zeros_like(state_dict[key])
+        # pyre-fixme[29]: `Union[Tensor, Module]` is not a function.
         self.set_voxel_grid_parameters(self.voxel_grid.values_type(**new_params))
 
     def get_device(self) -> torch.device:
         """
         Returns torch.device on which module parameters are located
         """
+        # pyre-fixme[29]: `Union[(self: TensorBase) -> Tensor, Tensor, Module]` is
+        #  not a function.
         return next(val for val in self.params.values() if val is not None).device
 
     def crop_self(self, min_point: torch.Tensor, max_point: torch.Tensor) -> None:
@@ -1018,6 +1027,7 @@ class VoxelGridModule(Configurable, torch.nn.Module):
         """
         locator = self._get_volume_locator()
         #  torch.nn.modules.module.Module]` is not a function.
+        # pyre-fixme[29]: `Union[Tensor, Module]` is not a function.
         old_grid_values = self.voxel_grid.values_type(**self.params)
         new_grid_values = self.voxel_grid.crop_world(
             min_point, max_point, old_grid_values, locator
@@ -1025,6 +1035,7 @@ class VoxelGridModule(Configurable, torch.nn.Module):
         grid_values, _ = self.voxel_grid.change_resolution(
             new_grid_values, grid_values_with_wanted_resolution=old_grid_values
         )
+        # pyre-fixme[16]: `VoxelGridModule` has no attribute `params`.
         self.params = torch.nn.ParameterDict(
             {
                 k: torch.nn.Parameter(val)

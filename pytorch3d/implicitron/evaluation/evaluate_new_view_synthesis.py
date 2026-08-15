@@ -299,7 +299,6 @@ def eval_batch(
     )
 
     for loss_fg_mask, name_postfix in zip((mask_crop, mask_fg), ("_masked", "_fg")):
-
         loss_mask_now = mask_crop * loss_fg_mask
 
         for rgb_metric_name, rgb_metric_fun in zip(
@@ -313,6 +312,7 @@ def eval_batch(
             )
 
             if visualize:
+                # pyrefly: ignore [unbound-name]
                 visualizer.show_rgb(
                     results[metric_name].item(), metric_name, loss_mask_now
                 )
@@ -331,6 +331,7 @@ def eval_batch(
             results["depth_abs" + name_postfix] = abs_.mean()
 
             if visualize:
+                # pyrefly: ignore [unbound-name]
                 visualizer.show_depth(abs_.mean().item(), name_postfix, loss_mask_now)
                 if break_after_visualising:
                     breakpoint()  # noqa: B601

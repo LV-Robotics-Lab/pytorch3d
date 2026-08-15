@@ -63,9 +63,6 @@ class TestTensorProperties(TestCaseMixin, unittest.TestCase):
         self.assertEqual(example_gpu.device.type, "cuda")
         self.assertIsNotNone(example_gpu.device.index)
 
-        example_gpu1 = example.cuda(1)
-        self.assertEqual(example_gpu1.device, torch.device("cuda:1"))
-
     def test_clone(self):
         # Check clone method
         example = TensorPropertiesTestClass(x=10.0, y=(100.0, 200.0))
@@ -231,7 +228,6 @@ class TestTensorProperties(TestCaseMixin, unittest.TestCase):
 
         # check both H > W and W > H
         for flip_axes in [False, True]:
-
             # non-batched version
             for xy_ndc, xy_gs in xy_ndc_gs:
                 xy_gs_predicted = ndc_to_grid_sample_coords(

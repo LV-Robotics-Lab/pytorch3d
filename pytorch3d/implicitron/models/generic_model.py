@@ -16,7 +16,6 @@ from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 
 import torch
 from omegaconf import DictConfig
-
 from pytorch3d.implicitron.models.base_model import (
     ImplicitronModelBase,
     ImplicitronRender,
@@ -28,7 +27,6 @@ from pytorch3d.implicitron.models.metrics import (
     RegularizationMetricsBase,
     ViewMetricsBase,
 )
-
 from pytorch3d.implicitron.models.renderer.base import (
     BaseRenderer,
     EvaluationMode,
@@ -38,7 +36,6 @@ from pytorch3d.implicitron.models.renderer.base import (
     RenderSamplingMode,
 )
 from pytorch3d.implicitron.models.renderer.ray_sampler import RaySamplerBase
-
 from pytorch3d.implicitron.models.utils import (
     apply_chunked,
     chunk_generator,
@@ -53,7 +50,6 @@ from pytorch3d.implicitron.tools.config import (
     registry,
     run_auto_creation,
 )
-
 from pytorch3d.implicitron.tools.rasterize_mc import rasterize_sparse_ray_bundle
 from pytorch3d.renderer import utils as rend_utils
 from pytorch3d.renderer.cameras import CamerasBase
@@ -476,8 +472,11 @@ class GenericModel(ImplicitronModelBase):
                 sequence_name=safe_slice_targets(sequence_name),
                 frame_timestamp=safe_slice_targets(frame_timestamp),
             )
+        # pyrefly: ignore [unsupported-operation]
         custom_args["global_code"] = global_code
 
+        # pyre-fixme[29]: `Union[(self: Tensor) -> Any, Tensor, Module]` is not a
+        #  function.
         for func in self._implicit_functions:
             func.bind_args(**custom_args)
 
@@ -500,6 +499,8 @@ class GenericModel(ImplicitronModelBase):
         # Unbind the custom arguments to prevent pytorch from storing
         # large buffers of intermediate results due to points in the
         # bound arguments.
+        # pyre-fixme[29]: `Union[(self: Tensor) -> Any, Tensor, Module]` is not a
+        #  function.
         for func in self._implicit_functions:
             func.unbind_args()
 

@@ -16,14 +16,11 @@ This file contains
 
 import logging
 from dataclasses import field
-
 from enum import Enum
 from typing import Dict, Optional, Tuple
 
 import torch
-
 from omegaconf import DictConfig
-
 from pytorch3d.implicitron.tools.config import (
     Configurable,
     registry,
@@ -232,9 +229,14 @@ class MLPWithInputSkips(Configurable, torch.nn.Module):
             # if the skip tensor is None, we use `x` instead.
             z = x
         skipi = 0
+        # pyre-fixme[6]: For 1st argument expected `Iterable[_T]` but got
+        #  `Union[Tensor, Module]`.
         for li, layer in enumerate(self.mlp):
+            # pyre-fixme[58]: `in` is not supported for right operand type
+            #  `Union[Tensor, Module]`.
             if li in self._input_skips:
                 if self._skip_affine_trans:
+                    # pyre-fixme[29]: `Union[(self: TensorBase, indices: Union[None, ...
                     y = self._apply_affine_layer(self.skip_affines[skipi], y, z)
                 else:
                     y = torch.cat((y, z), dim=-1)

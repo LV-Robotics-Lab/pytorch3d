@@ -7,7 +7,7 @@
 
 # pyre-unsafe
 
-""""
+""" "
 This file is the entry point for launching experiments with Implicitron.
 
 Launch Training
@@ -44,25 +44,22 @@ The outputs of the experiment are saved and logged in multiple ways:
         config file.
 
 """
+
 import logging
 import os
 import warnings
-
 from dataclasses import field
 
 import hydra
-
 import torch
 from accelerate import Accelerator
 from omegaconf import DictConfig, OmegaConf
 from packaging import version
-
 from pytorch3d.implicitron.dataset.data_source import (
     DataSourceBase,
     ImplicitronDataSource,
 )
 from pytorch3d.implicitron.models.base_model import ImplicitronModelBase
-
 from pytorch3d.implicitron.models.renderer.multipass_ea import (
     MultiPassEmissionAbsorptionRenderer,
 )
@@ -196,6 +193,7 @@ class Experiment(Configurable):
             last_epoch=start_epoch,
             model=model,
             resume=self.model_factory.resume,
+            # pyrefly: ignore [missing-attribute]
             resume_epoch=self.model_factory.resume_epoch,
         )
 
@@ -215,6 +213,7 @@ class Experiment(Configurable):
 
         # Enter the main training loop.
         self.training_loop.run(
+            # pyrefly: ignore [bad-argument-type]
             train_loader=train_loader,
             val_loader=val_loader,
             test_loader=test_loader,

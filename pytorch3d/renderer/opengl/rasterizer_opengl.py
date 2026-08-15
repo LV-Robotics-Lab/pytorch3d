@@ -17,15 +17,12 @@ import numpy as np
 import OpenGL.GL as gl
 import pycuda.gl
 import torch
-
 import torch.nn as nn
-
 from pytorch3d.structures.meshes import Meshes
 
 from ..cameras import FoVOrthographicCameras, FoVPerspectiveCameras
 from ..mesh.rasterizer import Fragments, RasterizationSettings
 from ..utils import parse_image_size
-
 from .opengl_utils import _torch_to_opengl, global_device_context_store
 
 # Shader strings, used below to compile an OpenGL program.
@@ -216,6 +213,7 @@ class MeshRasterizerOpenGL(nn.Module):
             dists=None,
         ).detach()
 
+    # pyrefly: ignore [bad-override]
     def to(self, device):
         # Manually move to device cameras as it is not a subclass of nn.Module
         if self.cameras is not None:
@@ -279,6 +277,7 @@ class _OpenGLMachinery:
         """
 
         self.initialize_device_data(meshes_gl_ndc.device)
+        # pyrefly: ignore [missing-attribute]
         with self.egl_context.active_and_locked():
             # Perspective projection happens in OpenGL. Move the matrix over if there's only
             # a single camera shared by all the meshes.
@@ -373,11 +372,15 @@ class _OpenGLMachinery:
         """
         # Finish all current operations.
         torch.cuda.synchronize()
+        # pyrefly: ignore [missing-attribute]
         self.cuda_context.synchronize()
 
         # Free pycuda resources.
+        # pyrefly: ignore [missing-attribute]
         self.cuda_context.push()
+        # pyrefly: ignore [missing-attribute]
         self.cuda_buffer.unregister()
+        # pyrefly: ignore [missing-attribute]
         self.cuda_context.pop()
 
         # Free GL resources.
@@ -394,6 +397,7 @@ class _OpenGLMachinery:
         del self.mesh_buffer_object
 
         gl.glDeleteProgram(self.program)
+        # pyrefly: ignore [missing-attribute]
         self.egl_context.release()
 
     def _projection_matrix_to_opengl(self, projection_matrix: torch.Tensor) -> None:

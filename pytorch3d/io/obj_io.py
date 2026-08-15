@@ -8,6 +8,7 @@
 
 
 """This module implements utility functions for loading and saving meshes."""
+
 import os
 import warnings
 from collections import namedtuple
@@ -225,6 +226,7 @@ def load_obj(
     with _open_file(f, path_manager, "r") as f:
         return _load_obj(
             f,
+            # pyrefly: ignore [bad-argument-type]
             data_dir=data_dir,
             load_textures=load_textures,
             create_texture_atlas=create_texture_atlas,
@@ -640,6 +642,7 @@ def _load_obj(
         material_names.append(next(iter(material_colors.keys())))
         # replace all -1 by 0 material idx
         if torch.is_tensor(faces_materials_idx):
+            # pyrefly: ignore [missing-attribute]
             faces_materials_idx.clamp_(min=0)
 
     if create_texture_atlas:
@@ -648,14 +651,18 @@ def _load_obj(
 
         # Create an array of strings of material names for each face.
         # If faces_materials_idx == -1 then that face doesn't have a material.
+        # pyrefly: ignore [missing-attribute]
         idx = faces_materials_idx.cpu().numpy()
         face_material_names = np.array([""] + material_names)[idx + 1]  # (F,)
 
         # Construct the atlas.
         texture_atlas = make_mesh_texture_atlas(
+            # pyrefly: ignore [bad-argument-type]
             material_colors,
+            # pyrefly: ignore [bad-argument-type]
             texture_images,
             face_material_names,
+            # pyrefly: ignore [bad-argument-type]
             faces_textures_idx,
             verts_uvs,
             texture_atlas_size,
@@ -795,7 +802,7 @@ def save_obj(
         # Create .mtl file with the material name and texture map filename
         # TODO: enable material properties to also be saved.
         with _open_file(mtl_path, path_manager, "w") as f_mtl:
-            lines = f"newmtl mesh\n" f"map_Kd {output_path.stem}.png\n"
+            lines = f"newmtl mesh\nmap_Kd {output_path.stem}.png\n"
             f_mtl.write(lines)
 
 
@@ -813,7 +820,6 @@ def _save(
     save_texture: bool = False,
     save_normals: bool = False,
 ) -> None:
-
     if len(verts) and (verts.dim() != 2 or verts.size(1) != 3):
         message = "'verts' should either be empty or of shape (num_verts, 3)."
         raise ValueError(message)

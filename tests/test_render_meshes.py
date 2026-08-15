@@ -8,10 +8,10 @@
 """
 Sanity checks for output images from the renderer.
 """
+
 import os
 import unittest
 from collections import namedtuple
-
 from itertools import product
 
 import numpy as np

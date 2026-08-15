@@ -14,9 +14,7 @@ from dataclasses import field
 from typing import Any, Dict, List, Optional, Tuple
 
 import torch.optim
-
 from accelerate import Accelerator
-
 from pytorch3d.implicitron.models.base_model import ImplicitronModelBase
 from pytorch3d.implicitron.tools import model_io
 from pytorch3d.implicitron.tools.config import (
@@ -123,6 +121,7 @@ class ImplicitronOptimizerFactory(OptimizerFactoryBase):
         """
         # Get the parameters to optimize
         if hasattr(model, "_get_param_groups"):  # use the model function
+            # pyre-fixme[29]: `Union[Tensor, Module]` is not a function.
             p_groups = model._get_param_groups(self.lr, wd=self.weight_decay)
         else:
             p_groups = [
@@ -170,9 +169,11 @@ class ImplicitronOptimizerFactory(OptimizerFactoryBase):
                 gamma=self.gamma,
             )
         elif self.lr_policy.casefold() == "Exponential".casefold():
+            # pyre-fixme[28]: Unexpected keyword argument `verbose`.
             scheduler = torch.optim.lr_scheduler.LambdaLR(
                 optimizer,
                 lambda epoch: self.gamma ** (epoch / self.exponential_lr_step_size),
+                # pyrefly: ignore [unexpected-keyword]
                 verbose=False,
             )
         elif self.lr_policy.casefold() == "LinearExponential".casefold():
@@ -189,8 +190,13 @@ class ImplicitronOptimizerFactory(OptimizerFactoryBase):
                     gamma = self.gamma ** (epoch_rest / self.exponential_lr_step_size)
                 return gamma
 
+            # pyre-fixme[28]: Unexpected keyword argument `verbose`.
             scheduler = torch.optim.lr_scheduler.LambdaLR(
-                optimizer, _get_lr, verbose=False
+                # pyrefly: ignore [unexpected-keyword]
+                optimizer,
+                _get_lr,
+                # pyrefly: ignore [unexpected-keyword]
+                verbose=False,
             )
         else:
             raise ValueError("no such lr policy %s" % self.lr_policy)
@@ -241,7 +247,7 @@ class ImplicitronOptimizerFactory(OptimizerFactoryBase):
                     map_location = {
                         "cuda:%d" % 0: "cuda:%d" % accelerator.local_process_index
                     }
-                optimizer_state = torch.load(opt_path, map_location)
+                optimizer_state = torch.load(opt_path, map_location, weights_only=True)
             else:
                 raise FileNotFoundError(f"Optimizer state {opt_path} does not exist.")
         return optimizer_state

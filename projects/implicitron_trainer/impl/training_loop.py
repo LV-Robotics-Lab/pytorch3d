@@ -161,7 +161,6 @@ class ImplicitronTrainingLoop(TrainingLoopBase):
         for epoch in range(start_epoch, self.max_epochs):
             # automatic new_epoch and plotting of stats at every epoch start
             with stats:
-
                 # Make sure to re-seed random generators to ensure reproducibility
                 # even after restart.
                 seed_all_random_engines(seed + epoch)
@@ -200,6 +199,7 @@ class ImplicitronTrainingLoop(TrainingLoopBase):
                     and self.test_interval > 0
                     and epoch % self.test_interval == 0
                 ):
+                    # pyrefly: ignore [missing-attribute]
                     self.evaluator.run(
                         device=device,
                         dataloader=test_loader,
@@ -216,6 +216,7 @@ class ImplicitronTrainingLoop(TrainingLoopBase):
 
         if self.test_when_finished:
             if test_loader is not None:
+                # pyrefly: ignore [missing-attribute]
                 self.evaluator.run(
                     device=device,
                     dump_to_json=True,
@@ -395,6 +396,7 @@ class ImplicitronTrainingLoop(TrainingLoopBase):
             ):
                 prefix = f"e{stats.epoch}_it{stats.it[trainmode]}"
                 if hasattr(model, "visualize"):
+                    # pyre-fixme[29]: `Union[Tensor, Module]` is not a function.
                     model.visualize(
                         viz,
                         visdom_env_imgs,

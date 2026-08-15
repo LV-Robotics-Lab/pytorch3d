@@ -4,6 +4,8 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+# pyre-unsafe
+
 # This functionality requires SQLAlchemy 2.0 or later.
 
 import math
@@ -11,7 +13,6 @@ import struct
 from typing import Optional, Tuple
 
 import numpy as np
-
 from pytorch3d.implicitron.dataset.types import (
     DepthAnnotation,
     ImageAnnotation,
@@ -20,7 +21,6 @@ from pytorch3d.implicitron.dataset.types import (
     VideoAnnotation,
     ViewpointAnnotation,
 )
-
 from sqlalchemy import LargeBinary
 from sqlalchemy.orm import (
     composite,
@@ -90,6 +90,7 @@ def TupleTypeFactory(dtype=float, shape: Tuple[int, ...] = (2,)):
         impl = LargeBinary
         _format = format_symbol * math.prod(shape)
 
+        # pyrefly: ignore [bad-override-param-name]
         def process_bind_param(self, value, _):
             if value is None:
                 return None
@@ -99,6 +100,7 @@ def TupleTypeFactory(dtype=float, shape: Tuple[int, ...] = (2,)):
 
             return struct.pack(TupleType._format, *value)
 
+        # pyrefly: ignore [bad-override-param-name]
         def process_result_value(self, value, _):
             if value is None:
                 return None

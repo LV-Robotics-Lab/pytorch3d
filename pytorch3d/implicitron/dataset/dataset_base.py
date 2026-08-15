@@ -21,7 +21,6 @@ from typing import (
 )
 
 import torch
-
 from pytorch3d.implicitron.dataset.frame_data import FrameData
 from pytorch3d.implicitron.dataset.utils import GenericWorkaround
 
@@ -102,6 +101,7 @@ class DatasetBase(GenericWorkaround, torch.utils.data.Dataset[FrameData]):
             # crashes without overriding __getitem__
             sequence_category = self[first_frame_idx].sequence_category
             c2seq[sequence_category].append(sequence_name)
+        # pyrefly: ignore [bad-return]
         return dict(c2seq)
 
     def sequence_frames_in_order(

@@ -25,7 +25,6 @@ CONFIG_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "configs"
 
 @hydra.main(config_path=CONFIG_DIR, config_name="lego")
 def main(cfg: DictConfig):
-
     # Set the relevant seeds for reproducibility.
     np.random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
@@ -77,7 +76,7 @@ def main(cfg: DictConfig):
         # Resume training if requested.
         if cfg.resume and os.path.isfile(checkpoint_path):
             print(f"Resuming from checkpoint {checkpoint_path}.")
-            loaded_data = torch.load(checkpoint_path)
+            loaded_data = torch.load(checkpoint_path, weights_only=True)
             model.load_state_dict(loaded_data["model"])
             stats = pickle.loads(loaded_data["stats"])
             print(f"   => resuming from epoch {stats.epoch}.")
@@ -219,7 +218,6 @@ def main(cfg: DictConfig):
 
         # Validation
         if epoch % cfg.validation_epoch_interval == 0 and epoch > 0:
-
             # Sample a validation camera/image.
             val_batch = next(val_dataloader.__iter__())
             val_image, val_camera, camera_idx = val_batch[0].values()

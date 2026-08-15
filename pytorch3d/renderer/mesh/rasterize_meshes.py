@@ -14,7 +14,6 @@ import torch
 from pytorch3d import _C
 
 from ..utils import parse_image_size
-
 from .clip import (
     clip_faces,
     ClipFrustum,
@@ -317,6 +316,7 @@ class _RasterizeFaceVerts(torch.autograd.Function):
         return pix_to_face, zbuf, barycentric_coords, dists
 
     @staticmethod
+    # pyrefly: ignore [bad-override]
     def backward(ctx, grad_pix_to_face, grad_zbuf, grad_barycentric_coords, grad_dists):
         grad_face_verts = None
         grad_mesh_to_face_first_idx = None

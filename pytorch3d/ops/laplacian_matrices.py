@@ -47,8 +47,7 @@ def laplacian(verts: torch.Tensor, edges: torch.Tensor) -> torch.Tensor:
     # i.e. A[i, j] = 1 if (i,j) is an edge, or
     # A[e0, e1] = 1 &  A[e1, e0] = 1
     ones = torch.ones(idx.shape[1], dtype=torch.float32, device=verts.device)
-    # pyre-fixme[16]: Module `sparse` has no attribute `FloatTensor`.
-    A = torch.sparse.FloatTensor(idx, ones, (V, V))
+    A = torch.sparse_coo_tensor(idx, ones, (V, V), dtype=torch.float32)
 
     # the sum of i-th row of A gives the degree of the i-th vertex
     deg = torch.sparse.sum(A, dim=1).to_dense()
@@ -56,21 +55,17 @@ def laplacian(verts: torch.Tensor, edges: torch.Tensor) -> torch.Tensor:
     # We construct the Laplacian matrix by adding the non diagonal values
     # i.e. L[i, j] = 1 ./ deg(i) if (i, j) is an edge
     deg0 = deg[e0]
-    # pyre-fixme[58]: `/` is not supported for operand types `float` and `Tensor`.
-    deg0 = torch.where(deg0 > 0.0, 1.0 / deg0, deg0)
+    deg0 = torch.where(deg0 > 0.0, torch.reciprocal(deg0), deg0)
     deg1 = deg[e1]
-    # pyre-fixme[58]: `/` is not supported for operand types `float` and `Tensor`.
-    deg1 = torch.where(deg1 > 0.0, 1.0 / deg1, deg1)
+    deg1 = torch.where(deg1 > 0.0, torch.reciprocal(deg1), deg1)
     val = torch.cat([deg0, deg1])
-    # pyre-fixme[16]: Module `sparse` has no attribute `FloatTensor`.
-    L = torch.sparse.FloatTensor(idx, val, (V, V))
+    L = torch.sparse_coo_tensor(idx, val, (V, V), dtype=torch.float32)
 
     # Then we add the diagonal values L[i, i] = -1.
     idx = torch.arange(V, device=verts.device)
     idx = torch.stack([idx, idx], dim=0)
     ones = torch.ones(idx.shape[1], dtype=torch.float32, device=verts.device)
-    # pyre-fixme[16]: Module `sparse` has no attribute `FloatTensor`.
-    L -= torch.sparse.FloatTensor(idx, ones, (V, V))
+    L -= torch.sparse_coo_tensor(idx, ones, (V, V), dtype=torch.float32)
 
     return L
 
@@ -108,8 +103,8 @@ def cot_laplacian(
     s = 0.5 * (A + B + C)
     # note that the area can be negative (close to 0) causing nans after sqrt()
     # we clip it to a small positive value
-    # pyre-fixme[16]: `float` has no attribute `clamp_`.
-    area = (s * (s - A) * (s - B) * (s - C)).clamp_(min=eps).sqrt()
+    # pyre-fixme[16]: `float` has no attribute `clamp`.
+    area = (s * (s - A) * (s - B) * (s - C)).clamp(min=eps).sqrt()
 
     # Compute cotangents of angles, of shape (sum(F_n), 3)
     A2, B2, C2 = A * A, B * B, C * C
@@ -117,7 +112,7 @@ def cot_laplacian(
     cotb = (A2 + C2 - B2) / area
     cotc = (A2 + B2 - C2) / area
     cot = torch.stack([cota, cotb, cotc], dim=1)
-    cot /= 4.0
+    cot = cot / 4.0
 
     # Construct a sparse matrix by basically doing:
     # L[v1, v2] = cota
@@ -126,14 +121,13 @@ def cot_laplacian(
     ii = faces[:, [1, 2, 0]]
     jj = faces[:, [2, 0, 1]]
     idx = torch.stack([ii, jj], dim=0).view(2, F * 3)
-    # pyre-fixme[16]: Module `sparse` has no attribute `FloatTensor`.
-    L = torch.sparse.FloatTensor(idx, cot.view(-1), (V, V))
+    L = torch.sparse_coo_tensor(idx, cot.view(-1), (V, V), dtype=torch.float32)
 
     # Make it symmetric; this means we are also setting
     # L[v2, v1] = cota
     # L[v0, v2] = cotb
     # L[v1, v0] = cotc
-    L += L.t()
+    L = L + L.t()
 
     # For each vertex, compute the sum of areas for triangles containing it.
     idx = faces.view(-1)
@@ -141,8 +135,7 @@ def cot_laplacian(
     val = torch.stack([area] * 3, dim=1).view(-1)
     inv_areas.scatter_add_(0, idx, val)
     idx = inv_areas > 0
-    # pyre-fixme[58]: `/` is not supported for operand types `float` and `Tensor`.
-    inv_areas[idx] = 1.0 / inv_areas[idx]
+    inv_areas[idx] = torch.reciprocal(inv_areas[idx])
     inv_areas = inv_areas.view(-1, 1)
 
     return L, inv_areas
@@ -167,7 +160,7 @@ def norm_laplacian(
     v0, v1 = edge_verts[:, 0], edge_verts[:, 1]
 
     # Side lengths of each edge, of shape (E,)
-    w01 = 1.0 / ((v0 - v1).norm(dim=1) + eps)
+    w01 = torch.reciprocal((v0 - v1).norm(dim=1) + eps)
 
     # Construct a sparse matrix by basically doing:
     # L[v0, v1] = w01
@@ -175,8 +168,7 @@ def norm_laplacian(
     e01 = edges.t()  # (2, E)
 
     V = verts.shape[0]
-    # pyre-fixme[16]: Module `sparse` has no attribute `FloatTensor`.
-    L = torch.sparse.FloatTensor(e01, w01, (V, V))
+    L = torch.sparse_coo_tensor(e01, w01, (V, V), dtype=torch.float32)
     L = L + L.t()
 
     return L
