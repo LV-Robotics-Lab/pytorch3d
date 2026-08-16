@@ -18,7 +18,6 @@ from typing import Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 from iopath.common.file_io import PathManager
-
 from omegaconf import DictConfig
 from pytorch3d.implicitron.dataset.dataset_map_provider import (
     DatasetMap,
@@ -31,7 +30,6 @@ from pytorch3d.implicitron.tools.config import (
     registry,
     run_auto_creation,
 )
-
 from pytorch3d.renderer.cameras import CamerasBase
 from tqdm import tqdm
 
@@ -222,7 +220,6 @@ class JsonIndexDatasetMapProviderV2(DatasetMapProviderBase):
         self.dataset_map = dataset_map
 
     def _load_category(self, category: str) -> DatasetMap:
-
         frame_file = os.path.join(self.dataset_root, category, "frame_annotations.jgz")
         sequence_file = os.path.join(
             self.dataset_root, category, "sequence_annotations.jgz"
@@ -314,6 +311,7 @@ class JsonIndexDatasetMapProviderV2(DatasetMapProviderBase):
                     subset_mapping["test"],
                 ) = self._extend_test_data_with_known_views(
                     subset_mapping,
+                    # pyrefly: ignore [bad-argument-type]
                     eval_batch_index,
                 )
 
@@ -325,6 +323,7 @@ class JsonIndexDatasetMapProviderV2(DatasetMapProviderBase):
                 try:
                     test_dataset.eval_batches = (
                         test_dataset.seq_frame_index_to_dataset_index(
+                            # pyrefly: ignore [bad-argument-type]
                             eval_batch_index,
                         )
                     )
@@ -338,6 +337,7 @@ class JsonIndexDatasetMapProviderV2(DatasetMapProviderBase):
                     )
                     test_dataset.eval_batches = (
                         test_dataset.seq_frame_index_to_dataset_index(
+                            # pyrefly: ignore [bad-argument-type]
                             eval_batch_index,
                             allow_missing_indices=True,
                             remove_missing_indices=True,

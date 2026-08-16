@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 """Basic rendering test."""
+
 import logging
 import os
 import sys
@@ -76,7 +77,7 @@ class TestForward(unittest.TestCase):
                         "test_out",
                         "test_forward_TestForward_test_bg_weight_hits.png",
                     ),
-                    (hits * 255.0).cpu().to(torch.uint8).numpy(),
+                    (hits * 255.0).cpu().to(torch.uint8).squeeze(2).numpy(),
                 )
             self.assertEqual(hits[500, 500, 0].item(), 1.0)
             self.assertTrue(
@@ -139,7 +140,7 @@ class TestForward(unittest.TestCase):
                         "test_out",
                         "test_forward_TestForward_test_basic_3chan_hits.png",
                     ),
-                    (hits * 255.0).cpu().to(torch.uint8).numpy(),
+                    (hits * 255.0).cpu().to(torch.uint8).squeeze(2).numpy(),
                 )
             self.assertEqual(hits[500, 500, 0].item(), 1.0)
             self.assertTrue(
@@ -194,7 +195,7 @@ class TestForward(unittest.TestCase):
                         "test_out",
                         "test_forward_TestForward_test_basic_1chan.png",
                     ),
-                    (result * 255.0).cpu().to(torch.uint8).numpy(),
+                    (result * 255.0).cpu().to(torch.uint8).squeeze(2).numpy(),
                 )
                 imageio.imsave(
                     path.join(
@@ -202,7 +203,7 @@ class TestForward(unittest.TestCase):
                         "test_out",
                         "test_forward_TestForward_test_basic_1chan_hits.png",
                     ),
-                    (hits * 255.0).cpu().to(torch.uint8).numpy(),
+                    (hits * 255.0).cpu().to(torch.uint8).squeeze(2).numpy(),
                 )
             self.assertEqual(hits[500, 500, 0].item(), 1.0)
             self.assertTrue(
@@ -264,7 +265,7 @@ class TestForward(unittest.TestCase):
                         "test_out",
                         "test_forward_TestForward_test_basic_8chan_hits.png",
                     ),
-                    (hits * 255.0).cpu().to(torch.uint8).numpy(),
+                    (hits * 255.0).cpu().to(torch.uint8).squeeze(2).numpy(),
                 )
             self.assertEqual(hits[500, 500, 0].item(), 1.0)
             self.assertTrue(

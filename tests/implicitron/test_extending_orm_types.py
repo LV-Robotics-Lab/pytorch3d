@@ -14,7 +14,6 @@ from typing import ClassVar, Optional, Type
 import pandas as pd
 import pkg_resources
 import sqlalchemy as sa
-
 from pytorch3d.implicitron.dataset import types
 from pytorch3d.implicitron.dataset.frame_data import FrameData, GenericFrameDataBuilder
 from pytorch3d.implicitron.dataset.orm_types import (
@@ -87,7 +86,9 @@ class CanineFrameDataBuilder(
         sequence_annotation: types.SequenceAnnotation,
         load_blobs: bool = True,
     ) -> CanineFrameData:
-        frame_data = super().build(frame_annotation, sequence_annotation, load_blobs)
+        frame_data = super().build(
+            frame_annotation, sequence_annotation, load_blobs=load_blobs
+        )
         frame_data.num_dogs = frame_annotation.num_dogs or 101
         frame_data.magnetic_field_average_flux_density = (
             frame_annotation.magnetic_field.average_flux_density

@@ -203,7 +203,9 @@ class CamerasBase(TensorProperties):
         """
         R: torch.Tensor = kwargs.get("R", self.R)
         T: torch.Tensor = kwargs.get("T", self.T)
+        # pyre-fixme[16]: `CamerasBase` has no attribute `R`.
         self.R = R
+        # pyre-fixme[16]: `CamerasBase` has no attribute `T`.
         self.T = T
         world_to_view_transform = get_world_to_view_transform(R=R, T=T)
         return world_to_view_transform
@@ -228,7 +230,9 @@ class CamerasBase(TensorProperties):
             a Transform3d object which represents a batch of transforms
             of shape (N, 3, 3)
         """
+        # pyre-fixme[16]: `CamerasBase` has no attribute `R`.
         self.R: torch.Tensor = kwargs.get("R", self.R)
+        # pyre-fixme[16]: `CamerasBase` has no attribute `T`.
         self.T: torch.Tensor = kwargs.get("T", self.T)
         world_to_view_transform = self.get_world_to_view_transform(R=self.R, T=self.T)
         view_to_proj_transform = self.get_projection_transform(**kwargs)
@@ -358,6 +362,7 @@ class CamerasBase(TensorProperties):
             self, with_xyflip=with_xyflip, image_size=image_size
         ).transform_points(points_ndc, eps=eps)
 
+    # pyrefly: ignore [bad-override]
     def clone(self):
         """
         Returns a copy of `self`.
@@ -386,6 +391,7 @@ class CamerasBase(TensorProperties):
         """
         return getattr(self, "image_size", None)
 
+    # pyrefly: ignore [bad-override]
     def __getitem__(
         self, index: Union[int, List[int], torch.BoolTensor, torch.LongTensor]
     ) -> "CamerasBase":
@@ -451,11 +457,14 @@ class CamerasBase(TensorProperties):
             elif isinstance(val, torch.Tensor):
                 # In the init, all inputs will be converted to
                 # tensors before setting as attributes
+                # pyrefly: ignore [unsupported-operation]
                 kwargs[field] = val[index]
             else:
                 raise ValueError(f"Field {field} type is not supported for indexing")
 
+        # pyrefly: ignore [unsupported-operation]
         kwargs["device"] = self.device
+        # pyrefly: ignore [bad-argument-type]
         return self.__class__(**kwargs)
 
 
@@ -625,10 +634,8 @@ class FoVPerspectiveCameras(CamerasBase):
         # so the so the z sign is 1.0.
         z_sign = 1.0
 
-        # pyre-fixme[58]: `/` is not supported for operand types `float` and `Tensor`.
-        K[:, 0, 0] = 2.0 * znear / (max_x - min_x)
-        # pyre-fixme[58]: `/` is not supported for operand types `float` and `Tensor`.
-        K[:, 1, 1] = 2.0 * znear / (max_y - min_y)
+        K[:, 0, 0] = torch.div(2.0 * znear, max_x - min_x)
+        K[:, 1, 1] = torch.div(2.0 * znear, max_y - min_y)
         K[:, 0, 2] = (max_x + min_x) / (max_x - min_x)
         K[:, 1, 2] = (max_y + min_y) / (max_y - min_y)
         K[:, 3, 2] = z_sign * ones
@@ -1172,7 +1179,10 @@ class PerspectiveCameras(CamerasBase):
 
         unprojection_transform = to_camera_transform.inverse()
         xy_inv_depth = torch.cat(
-            (xy_depth[..., :2], 1.0 / xy_depth[..., 2:3]), dim=-1  # type: ignore
+            # pyre-fixme[6]: For 1st argument expected `Union[List[Tensor],
+            #  tuple[Tensor, ...]]` but got `Tuple[Tensor, float]`.
+            (xy_depth[..., :2], torch.reciprocal(xy_depth[..., 2:3])),
+            dim=-1,  # type: ignore
         )
         return unprojection_transform.transform_points(xy_inv_depth)
 
@@ -1736,7 +1746,11 @@ def look_at_view_transform(
         dist, elev, azim, at, up = broadcasted_args
         C = (
             camera_position_from_spherical_angles(
-                dist, elev, azim, degrees=degrees, device=device
+                dist,  # pyrefly: ignore [bad-argument-type]
+                elev,  # pyrefly: ignore [bad-argument-type]
+                azim,  # pyrefly: ignore [bad-argument-type]
+                degrees=degrees,
+                device=device,  # pyrefly: ignore [bad-argument-type]
             )
             + at
         )
@@ -1782,6 +1796,7 @@ def get_ndc_to_screen_transform(
     K = torch.zeros((cameras._N, 4, 4), device=cameras.device, dtype=torch.float32)
     if not torch.is_tensor(image_size):
         image_size = torch.tensor(image_size, device=cameras.device)
+    # pyrefly: ignore [missing-attribute]
     image_size = image_size.view(-1, 2)  # of shape (1 or B)x2
     height, width = image_size.unbind(1)
 

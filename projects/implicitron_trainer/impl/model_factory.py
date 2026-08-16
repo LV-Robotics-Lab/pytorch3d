@@ -11,7 +11,6 @@ import os
 from typing import Optional
 
 import torch.optim
-
 from accelerate import Accelerator
 from pytorch3d.implicitron.models.base_model import ImplicitronModelBase
 from pytorch3d.implicitron.tools import model_io
@@ -26,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 
 class ModelFactoryBase(ReplaceableBase):
-
     resume: bool = True  # resume from the last checkpoint
 
     def __call__(self, **kwargs) -> ImplicitronModelBase:
@@ -116,7 +114,9 @@ class ImplicitronModelFactory(ModelFactoryBase):
                         "cuda:%d" % 0: "cuda:%d" % accelerator.local_process_index
                     }
                 model_state_dict = torch.load(
-                    model_io.get_model_path(model_path), map_location=map_location
+                    model_io.get_model_path(model_path),
+                    map_location=map_location,
+                    weights_only=True,
                 )
 
                 try:

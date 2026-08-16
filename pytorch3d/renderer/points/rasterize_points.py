@@ -11,7 +11,6 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
 from pytorch3d import _C
-
 from pytorch3d.renderer.mesh.rasterize_meshes import pix_to_non_square_ndc
 
 from ..utils import parse_image_size
@@ -217,6 +216,7 @@ class _RasterizePoints(torch.autograd.Function):
         return idx, zbuf, dists
 
     @staticmethod
+    # pyrefly: ignore [bad-override]
     def backward(ctx, grad_idx, grad_zbuf, grad_dists):
         grad_points = None
         grad_cloud_to_packed_first_idx = None

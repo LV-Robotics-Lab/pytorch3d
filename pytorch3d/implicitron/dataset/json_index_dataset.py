@@ -38,7 +38,6 @@ from pytorch3d.implicitron.dataset.utils import is_known_frame_scalar
 from pytorch3d.implicitron.tools.config import registry, ReplaceableBase
 from pytorch3d.renderer.camera_utils import join_cameras_as_batch
 from pytorch3d.renderer.cameras import CamerasBase
-
 from tqdm import tqdm
 
 
@@ -327,9 +326,9 @@ class JsonIndexDataset(DatasetBase, ReplaceableBase):
                 assert os.path.normpath(
                     # pyre-ignore[16]
                     self.frame_annots[idx]["frame_annotation"].image.path
-                ) == os.path.normpath(
-                    path
-                ), f"Inconsistent frame indices {seq_name, frame_no, path}."
+                ) == os.path.normpath(path), (
+                    f"Inconsistent frame indices {seq_name, frame_no, path}."
+                )
             return idx
 
         dataset_idx = [
@@ -426,6 +425,7 @@ class JsonIndexDataset(DatasetBase, ReplaceableBase):
                 raise ValueError("subsets not loaded")
             if is_known_frame_scalar(frame_type):
                 cameras.append(self[frame_idx].camera)
+        # pyrefly: ignore [bad-argument-type]
         return join_cameras_as_batch(cameras)
 
     def __getitem__(self, index) -> FrameData:

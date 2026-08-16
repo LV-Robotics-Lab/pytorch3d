@@ -15,7 +15,6 @@ import unittest
 import lpips
 import numpy as np
 import torch
-
 from pytorch3d.implicitron.dataset.frame_data import FrameData
 from pytorch3d.implicitron.dataset.json_index_dataset import JsonIndexDataset
 from pytorch3d.implicitron.evaluation.evaluate_new_view_synthesis import eval_batch
@@ -71,7 +70,6 @@ class TestEvaluation(unittest.TestCase):
 
         for diff in 10 ** torch.linspace(-5, 0, 6):
             for crop in (0, 5):
-
                 pred = gt + (torch.rand_like(gt) - 0.5) * 2 * diff
 
                 # scaled prediction test

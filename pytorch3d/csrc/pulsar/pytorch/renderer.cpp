@@ -7,13 +7,10 @@
  */
 
 #include "./renderer.h"
-#include "../include/commands.h"
 #include "./camera.h"
 #include "./util.h"
 
-#include <ATen/ATen.h>
 #ifdef WITH_CUDA
-#include <ATen/cuda/CUDAContext.h>
 #include <c10/cuda/CUDAGuard.h>
 #endif
 
@@ -860,8 +857,9 @@ std::tuple<torch::Tensor, torch::Tensor> Renderer::forward(
             ? (cudaStream_t) nullptr
 #endif
             : (cudaStream_t) nullptr);
-    if (mode == 1)
+    if (mode == 1) {
       results[batch_i] = results[batch_i].slice(2, 0, 1, 1);
+    }
     forw_infos[batch_i] = from_blob(
         this->renderer_vec[batch_i].forw_info_d,
         {this->renderer_vec[0].cam.film_height,
@@ -888,14 +886,14 @@ std::tuple<torch::Tensor, torch::Tensor> Renderer::forward(
 };
 
 std::tuple<
-    at::optional<torch::Tensor>,
-    at::optional<torch::Tensor>,
-    at::optional<torch::Tensor>,
-    at::optional<torch::Tensor>,
-    at::optional<torch::Tensor>,
-    at::optional<torch::Tensor>,
-    at::optional<torch::Tensor>,
-    at::optional<torch::Tensor>>
+    std::optional<torch::Tensor>,
+    std::optional<torch::Tensor>,
+    std::optional<torch::Tensor>,
+    std::optional<torch::Tensor>,
+    std::optional<torch::Tensor>,
+    std::optional<torch::Tensor>,
+    std::optional<torch::Tensor>,
+    std::optional<torch::Tensor>>
 Renderer::backward(
     const torch::Tensor& grad_im,
     const torch::Tensor& image,
@@ -922,7 +920,7 @@ Renderer::backward(
     const bool& dif_rad,
     const bool& dif_cam,
     const bool& dif_opy,
-    const at::optional<std::pair<uint, uint>>& dbg_pos) {
+    const std::optional<std::pair<uint, uint>>& dbg_pos) {
   this->ensure_on_device(this->device_tracker.device());
   size_t batch_size;
   size_t n_points;
@@ -1045,14 +1043,14 @@ Renderer::backward(
   }
   // Prepare the return value.
   std::tuple<
-      at::optional<torch::Tensor>,
-      at::optional<torch::Tensor>,
-      at::optional<torch::Tensor>,
-      at::optional<torch::Tensor>,
-      at::optional<torch::Tensor>,
-      at::optional<torch::Tensor>,
-      at::optional<torch::Tensor>,
-      at::optional<torch::Tensor>>
+      std::optional<torch::Tensor>,
+      std::optional<torch::Tensor>,
+      std::optional<torch::Tensor>,
+      std::optional<torch::Tensor>,
+      std::optional<torch::Tensor>,
+      std::optional<torch::Tensor>,
+      std::optional<torch::Tensor>,
+      std::optional<torch::Tensor>>
       ret;
   if (mode == 1 || (!dif_pos && !dif_col && !dif_rad && !dif_cam && !dif_opy)) {
     return ret;

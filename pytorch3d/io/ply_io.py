@@ -11,6 +11,7 @@
 This module implements utility functions for loading and saving
 meshes and point clouds as PLY files.
 """
+
 import itertools
 import os
 import struct
@@ -586,6 +587,7 @@ def _read_ply_element_binary_nolists(f, definition: _PlyElementType, big_endian:
         # piece = data[:, offset:end_offset].view(_PLY_TYPES[dtype].np_type)
         # but it fails in the general case
         # because of https://github.com/numpy/numpy/issues/9496.
+        # pyre-fixme[16]: Module `stride_tricks` has no attribute `as_strided`.
         piece = np.lib.stride_tricks.as_strided(
             data[:1, offset:end_offset].view(_PLY_TYPES[dtype].np_type),
             shape=(definition.count, count),
@@ -876,10 +878,14 @@ def _get_verts_column_indices(
     ):
         color_scale = 1.0 / 255
     return _VertsColumnIndices(
+        # pyrefly: ignore [bad-argument-type]
         point_idxs=point_idxs,
+        # pyrefly: ignore [bad-argument-type]
         color_idxs=None if None in color_idxs else color_idxs,
         color_scale=color_scale,
+        # pyrefly: ignore [bad-argument-type]
         normal_idxs=None if None in normal_idxs else normal_idxs,
+        # pyrefly: ignore [bad-argument-type]
         texture_uv_idxs=None if None in texture_uv_idxs else texture_uv_idxs,
     )
 
@@ -1246,13 +1252,10 @@ def _save_ply(
         return
 
     color_np_type = np.ubyte if colors_as_uint8 else np.float32
-    verts_dtype = [("verts", np.float32, 3)]
+    verts_dtype: list = [("verts", np.float32, 3)]
     if verts_normals is not None:
         verts_dtype.append(("normals", np.float32, 3))
     if verts_colors is not None:
-        # pyre-fixme[6]: For 1st argument expected `Tuple[str,
-        #  Type[floating[_32Bit]], int]` but got `Tuple[str,
-        #  Type[Union[floating[_32Bit], unsignedinteger[typing.Any]]], int]`.
         verts_dtype.append(("colors", color_np_type, 3))
 
     vert_data = np.zeros(verts.shape[0], dtype=verts_dtype)

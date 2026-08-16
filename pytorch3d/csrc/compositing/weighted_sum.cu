@@ -26,17 +26,16 @@ __global__ void weightedSumCudaForwardKernel(
     const at::PackedTensorAccessor64<float, 4, at::RestrictPtrTraits> alphas,
     const at::PackedTensorAccessor64<int64_t, 4, at::RestrictPtrTraits> points_idx) {
   // clang-format on
-  const int64_t batch_size = result.size(0);
   const int64_t C = features.size(0);
   const int64_t H = points_idx.size(2);
   const int64_t W = points_idx.size(3);
 
   // Get the batch and index
-  const int batch = blockIdx.x;
+  const auto batch = blockIdx.x;
 
   const int num_pixels = C * H * W;
-  const int num_threads = gridDim.y * blockDim.x;
-  const int tid = blockIdx.y * blockDim.x + threadIdx.x;
+  const auto num_threads = gridDim.y * blockDim.x;
+  const auto tid = blockIdx.y * blockDim.x + threadIdx.x;
 
   // Parallelize over each feature in each pixel in images of size H * W,
   // for each image in the batch of size batch_size
@@ -74,17 +73,16 @@ __global__ void weightedSumCudaBackwardKernel(
     const at::PackedTensorAccessor64<float, 4, at::RestrictPtrTraits> alphas,
     const at::PackedTensorAccessor64<int64_t, 4, at::RestrictPtrTraits> points_idx) {
   // clang-format on
-  const int64_t batch_size = points_idx.size(0);
   const int64_t C = features.size(0);
   const int64_t H = points_idx.size(2);
   const int64_t W = points_idx.size(3);
 
   // Get the batch and index
-  const int batch = blockIdx.x;
+  const auto batch = blockIdx.x;
 
   const int num_pixels = C * H * W;
-  const int num_threads = gridDim.y * blockDim.x;
-  const int tid = blockIdx.y * blockDim.x + threadIdx.x;
+  const auto num_threads = gridDim.y * blockDim.x;
+  const auto tid = blockIdx.y * blockDim.x + threadIdx.x;
 
   // Iterate over each pixel to compute the contribution to the
   // gradient for the features and weights

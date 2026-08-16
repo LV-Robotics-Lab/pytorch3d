@@ -231,7 +231,9 @@ class Configurable:
         return obj
 
 
+# pyrefly: ignore [invalid-type-var]
 _X = TypeVar("X", bound=ReplaceableBase)
+# pyrefly: ignore [invalid-type-var]
 _Y = TypeVar("Y", bound=Union[ReplaceableBase, Configurable])
 
 
@@ -623,6 +625,7 @@ def _field_annotations_for_default_args(
             field_ = dataclasses.field(default=default)
         field_annotations.append((pname, defval.annotation, field_))
 
+    # pyrefly: ignore [bad-return]
     return field_annotations
 
 
@@ -890,20 +893,27 @@ def expand_args_fields(
             continue
         expand_args_fields(base, _do_not_process=_do_not_process)
         if "_creation_functions" in base.__dict__:
+            # pyrefly: ignore [missing-attribute]
             creation_functions.extend(base._creation_functions)
         if "_known_implementations" in base.__dict__:
+            # pyrefly: ignore [missing-attribute]
             known_implementations.update(base._known_implementations)
         if "_processed_members" in base.__dict__:
+            # pyrefly: ignore [missing-attribute]
             processed_members.update(base._processed_members)
 
     to_process: List[Tuple[str, Type, _ProcessType]] = []
-    if "__annotations__" in some_class.__dict__:
-        for name, type_ in some_class.__annotations__.items():
-            underlying_and_process_type = _get_type_to_process(type_)
-            if underlying_and_process_type is None:
-                continue
-            underlying_type, process_type = underlying_and_process_type
-            to_process.append((name, underlying_type, process_type))
+    # Only this class's own annotations, never a base's. Reading
+    # some_class.__dict__["__annotations__"] used to express that, but under
+    # PEP 649 the entry is not in the class dict until something materializes
+    # it, so on 3.14 the lookup silently found nothing and no member was
+    # processed at all.
+    for name, type_ in inspect.get_annotations(some_class).items():
+        underlying_and_process_type = _get_type_to_process(type_)
+        if underlying_and_process_type is None:
+            continue
+        underlying_type, process_type = underlying_and_process_type
+        to_process.append((name, underlying_type, process_type))
 
     for name, underlying_type, process_type in to_process:
         processed_members[name] = some_class.__annotations__[name]

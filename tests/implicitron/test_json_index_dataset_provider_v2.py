@@ -13,7 +13,6 @@ import unittest
 from typing import List
 
 import numpy as np
-
 import torch
 import torchvision
 from PIL import Image
@@ -171,9 +170,7 @@ def _make_random_json_dataset_map_provider_v2_data(
                 Image.fromarray(
                     (mask * 255.0).astype(np.uint8),
                     mode="L",
-                ).convert(
-                    "L"
-                ).save(mask_path)
+                ).convert("L").save(mask_path)
 
                 fa = FrameAnnotation(
                     sequence_name=seq_name,

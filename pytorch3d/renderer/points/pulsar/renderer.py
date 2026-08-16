@@ -12,6 +12,7 @@ Proper Python support for pytorch requires creating a torch.autograd.function
 (independent of whether this is being done within the C++ module). This is done
 here and a torch.nn.Module is exposed for the use in more complex models.
 """
+
 import logging
 import warnings
 from typing import Optional, Tuple, Union
@@ -170,6 +171,7 @@ class _Render(torch.autograd.Function):
             return image
 
     @staticmethod
+    # pyrefly: ignore [bad-override]
     def backward(ctx, grad_im, *args):
         global GAMMA_WARNING_EMITTED
         (

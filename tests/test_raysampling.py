@@ -210,13 +210,11 @@ class TestRaysampling(TestCaseMixin, unittest.TestCase):
         device = torch.device("cuda")
 
         for n_pts_per_ray in (100, 1):
-
             for raysampler_type in (
                 MonteCarloRaysampler,
                 MultinomialRaysampler,
                 NDCMultinomialRaysampler,
             ):
-
                 raysampler = TestRaysampling.init_raysampler(
                     raysampler_type=raysampler_type,
                     min_x=min_x,
@@ -258,7 +256,6 @@ class TestRaysampling(TestCaseMixin, unittest.TestCase):
                     OrthographicCameras,
                     PerspectiveCameras,
                 ):
-
                     # init a batch of random cameras
                     cameras = init_random_cameras(
                         cam_type, batch_size, random_z=True
@@ -607,9 +604,9 @@ class TestRaysampling(TestCaseMixin, unittest.TestCase):
                     # test weather they are of the correct shape
                     for attr in ("origins", "directions", "lengths", "xys"):
                         tensor = getattr(ray_bundle, attr)
-                        assert tensor.shape[:2] == torch.Size(
-                            (n_rays_total, 1)
-                        ), tensor.shape
+                        assert tensor.shape[:2] == torch.Size((n_rays_total, 1)), (
+                            tensor.shape
+                        )
 
                     # if two camera ids are same than origins should also be the same
                     # directions and xys are always different and lengths equal
@@ -639,4 +636,4 @@ class TestRaysampling(TestCaseMixin, unittest.TestCase):
                                 origin1, origin2, rtol=1e-4, atol=1e-4
                             ) == (id1 == id2), (origin1, origin2, id1, id2)
                             assert not torch.allclose(dir1, dir2), (dir1, dir2)
-                            self.assertClose(len1, len2), (len1, len2)
+                            self.assertClose(len1, len2)

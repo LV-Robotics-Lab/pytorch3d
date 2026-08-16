@@ -71,9 +71,7 @@ def _list_to_padded_wrapper(
         # pyre-fixme[6]: For 2nd param expected `int` but got `Union[bool, float, int]`.
         x_reshaped.append(y.reshape(-1, D))
     x_padded = list_to_padded(x_reshaped, pad_size=pad_size, pad_value=pad_value)
-    # pyre-fixme[58]: `+` is not supported for operand types `Tuple[int, int]` and
-    #  `Size`.
-    return x_padded.reshape((N, -1) + reshape_dims)
+    return x_padded.reshape((N, -1) + tuple(reshape_dims))
 
 
 def _padded_to_list_wrapper(
@@ -104,9 +102,7 @@ def _padded_to_list_wrapper(
     # pyre-fixme[6]: For 3rd param expected `int` but got `Union[bool, float, int]`.
     x_reshaped = x.reshape(N, M, D)
     x_list = padded_to_list(x_reshaped, split_size=split_size)
-    # pyre-fixme[58]: `+` is not supported for operand types `Tuple[typing.Any]` and
-    #  `Size`.
-    x_list = [xl.reshape((xl.shape[0],) + reshape_dims) for xl in x_list]
+    x_list = [xl.reshape((xl.shape[0],) + tuple(reshape_dims)) for xl in x_list]
     return x_list
 
 
@@ -265,6 +261,7 @@ class TexturesBase:
                     f"Property {p} has unsupported type {type(t)}."
                     "Only tensors and lists are supported."
                 )
+        # pyrefly: ignore [bad-return]
         return new_props
 
     def _getitem(self, index: Union[int, slice], props: List[str]):
@@ -279,6 +276,7 @@ class TexturesBase:
                     t = t()  # class method
                 new_props[p] = t[index] if t is not None else None
         elif isinstance(index, list):
+            # pyrefly: ignore [bad-assignment]
             index = torch.tensor(index)
         if isinstance(index, torch.Tensor):
             if index.dtype == torch.bool:
@@ -455,6 +453,7 @@ class TexturesAtlas(TexturesBase):
                 msg = "Expected atlas to be of shape (N, F, R, R, C); got %r"
                 raise ValueError(msg % repr(atlas.ndim))
             self._atlas_padded = atlas
+            # pyrefly: ignore [bad-assignment]
             self._atlas_list = None
             self.device = atlas.device
 
@@ -478,6 +477,7 @@ class TexturesAtlas(TexturesBase):
         if self._atlas_list is not None:
             tex._atlas_list = [atlas.clone() for atlas in self._atlas_list]
         num_faces = (
+            # pyrefly: ignore [missing-attribute]
             self._num_faces_per_mesh.clone()
             if torch.is_tensor(self._num_faces_per_mesh)
             else self._num_faces_per_mesh
@@ -491,6 +491,7 @@ class TexturesAtlas(TexturesBase):
         if self._atlas_list is not None:
             tex._atlas_list = [atlas.detach() for atlas in self._atlas_list]
         num_faces = (
+            # pyrefly: ignore [missing-attribute]
             self._num_faces_per_mesh.detach()
             if torch.is_tensor(self._num_faces_per_mesh)
             else self._num_faces_per_mesh
@@ -508,9 +509,11 @@ class TexturesAtlas(TexturesBase):
             new_tex = self.__class__(atlas=atlas)
         elif torch.is_tensor(atlas):
             # single element
+            # pyrefly: ignore [bad-argument-type]
             new_tex = self.__class__(atlas=[atlas])
         else:
             raise ValueError("Not all values are provided in the correct format")
+        # pyrefly: ignore [bad-assignment]
         new_tex._num_faces_per_mesh = new_props["_num_faces_per_mesh"]
         return new_tex
 
@@ -522,7 +525,9 @@ class TexturesAtlas(TexturesBase):
                 )
             else:
                 self._atlas_padded = _list_to_padded_wrapper(
-                    self._atlas_list, pad_value=0.0
+                    # pyrefly: ignore [bad-argument-type]
+                    self._atlas_list,
+                    pad_value=0.0,
                 )
         return self._atlas_padded
 
@@ -532,8 +537,11 @@ class TexturesAtlas(TexturesBase):
                 self._atlas_padded = [
                     torch.empty((0, 0, 0, 3), dtype=torch.float32, device=self.device)
                 ] * self._N
+            # pyrefly: ignore [bad-assignment]
             self._atlas_list = _padded_to_list_wrapper(
-                self._atlas_padded, split_size=self._num_faces_per_mesh
+                # pyrefly: ignore [bad-argument-type]
+                self._atlas_padded,
+                split_size=self._num_faces_per_mesh,
             )
         return self._atlas_list
 
@@ -548,6 +556,7 @@ class TexturesAtlas(TexturesBase):
     def extend(self, N: int) -> "TexturesAtlas":
         new_props = self._extend(N, ["atlas_padded", "_num_faces_per_mesh"])
         new_tex = self.__class__(atlas=new_props["atlas_padded"])
+        # pyrefly: ignore [bad-assignment]
         new_tex._num_faces_per_mesh = new_props["_num_faces_per_mesh"]
         return new_tex
 
@@ -625,9 +634,7 @@ class TexturesAtlas(TexturesBase):
         of length `k`.
         """
         if len(faces_ids_list) != len(self.atlas_list()):
-            raise IndexError(
-                "faces_ids_list must be of " "the same length as atlas_list."
-            )
+            raise IndexError("faces_ids_list must be of the same length as atlas_list.")
 
         sub_features = []
         for atlas, faces_ids in zip(self.atlas_list(), faces_ids_list):
@@ -726,15 +733,17 @@ class TexturesUV(TexturesBase):
                     for each face
             verts_uvs: (N, V, 2) tensor giving the uv coordinates per vertex
                     (a FloatTensor with values between 0 and 1).
-            maps_ids: Used if there are to be multiple maps per face. This can be either a list of map_ids [(F,)]
+            maps_ids: Used if there are to be multiple maps per face.
+                    This can be either a list of map_ids [(F,)]
                     or a long tensor of shape (N, F) giving the id of the texture map
                     for each face. If maps_ids is present, the maps has an extra dimension M
                     (so maps_padded is (N, M, H, W, C) and maps_list has elements of
                     shape (M, H, W, C)).
                     Specifically, the color
-                    of a vertex V is given by an average of maps_padded[i, maps_ids[i, f], u, v, :]
+                    of a vertex V is given by an average of
+                       maps_padded[i, maps_ids[i, f], u, v, :]
                     over u and v integers adjacent to
-                    _verts_uvs_padded[i, _faces_uvs_padded[i, f, 0], :] .
+                       _verts_uvs_padded[i, _faces_uvs_padded[i, f, 0], :] .
             align_corners: If true, the extreme values 0 and 1 for verts_uvs
                     indicate the centers of the edge pixels in the maps.
             padding_mode: padding mode for outside grid values
@@ -794,6 +803,7 @@ class TexturesUV(TexturesBase):
                 msg = "Expected faces_uvs to be of shape (N, F, 3); got %r"
                 raise ValueError(msg % repr(faces_uvs.shape))
             self._faces_uvs_padded = faces_uvs
+            # pyrefly: ignore [bad-assignment]
             self._faces_uvs_list = None
             self.device = faces_uvs.device
 
@@ -830,6 +840,7 @@ class TexturesUV(TexturesBase):
                 msg = "Expected verts_uvs to be of shape (N, V, 2); got %r"
                 raise ValueError(msg % repr(verts_uvs.shape))
             self._verts_uvs_padded = verts_uvs
+            # pyrefly: ignore [bad-assignment]
             self._verts_uvs_list = None
 
             if verts_uvs.device != self.device:
@@ -842,6 +853,7 @@ class TexturesUV(TexturesBase):
         if isinstance(maps, (list, tuple)):
             self._maps_list = maps
         else:
+            # pyrefly: ignore [bad-assignment]
             self._maps_list = None
         self._maps_padded = self._format_maps_padded(maps)
 
@@ -970,6 +982,7 @@ class TexturesUV(TexturesBase):
         if self._maps_ids_list is not None:
             tex._maps_ids_list = [f.clone() for f in self._maps_ids_list]
         num_faces = (
+            # pyrefly: ignore [missing-attribute]
             self._num_faces_per_mesh.clone()
             if torch.is_tensor(self._num_faces_per_mesh)
             else self._num_faces_per_mesh
@@ -1001,6 +1014,7 @@ class TexturesUV(TexturesBase):
         if self._maps_ids_list is not None:
             tex._maps_ids_list = [mi.detach() for mi in self._maps_ids_list]
         num_faces = (
+            # pyrefly: ignore [missing-attribute]
             self._num_faces_per_mesh.detach()
             if torch.is_tensor(self._num_faces_per_mesh)
             else self._num_faces_per_mesh
@@ -1030,8 +1044,11 @@ class TexturesUV(TexturesBase):
                     "Maps ids are  not in the correct format expected list or tuple"
                 )
             new_tex = self.__class__(
+                # pyrefly: ignore [bad-argument-type]
                 faces_uvs=faces_uvs,
+                # pyrefly: ignore [bad-argument-type]
                 verts_uvs=verts_uvs,
+                # pyrefly: ignore [bad-argument-type]
                 maps=maps,
                 maps_ids=maps_ids,
                 padding_mode=self.padding_mode,
@@ -1044,8 +1061,11 @@ class TexturesUV(TexturesBase):
                     "Maps ids are not in the correct format expected tensor"
                 )
             new_tex = self.__class__(
+                # pyrefly: ignore [bad-argument-type]
                 faces_uvs=[faces_uvs],
+                # pyrefly: ignore [bad-argument-type]
                 verts_uvs=[verts_uvs],
+                # pyrefly: ignore [bad-argument-type]
                 maps=[maps],
                 maps_ids=[maps_ids] if maps_ids is not None else None,
                 padding_mode=self.padding_mode,
@@ -1054,6 +1074,7 @@ class TexturesUV(TexturesBase):
             )
         else:
             raise ValueError("Not all values are provided in the correct format")
+        # pyrefly: ignore [bad-assignment]
         new_tex._num_faces_per_mesh = new_props["_num_faces_per_mesh"]
         return new_tex
 
@@ -1065,7 +1086,9 @@ class TexturesUV(TexturesBase):
                 )
             else:
                 self._faces_uvs_padded = list_to_padded(
-                    self._faces_uvs_list, pad_value=0.0
+                    # pyrefly: ignore [bad-argument-type]
+                    self._faces_uvs_list,
+                    pad_value=0.0,
                 )
         return self._faces_uvs_padded
 
@@ -1076,9 +1099,13 @@ class TexturesUV(TexturesBase):
                     torch.empty((0, 3), dtype=torch.float32, device=self.device)
                 ] * self._N
             else:
+                # pyrefly: ignore [bad-assignment]
                 self._faces_uvs_list = padded_to_list(
-                    self._faces_uvs_padded, split_size=self._num_faces_per_mesh
+                    # pyrefly: ignore [bad-argument-type]
+                    self._faces_uvs_padded,
+                    split_size=self._num_faces_per_mesh,
                 )
+        # pyrefly: ignore [bad-return]
         return self._faces_uvs_list
 
     def verts_uvs_padded(self) -> torch.Tensor:
@@ -1089,7 +1116,9 @@ class TexturesUV(TexturesBase):
                 )
             else:
                 self._verts_uvs_padded = list_to_padded(
-                    self._verts_uvs_list, pad_value=0.0
+                    # pyrefly: ignore [bad-argument-type]
+                    self._verts_uvs_list,
+                    pad_value=0.0,
                 )
         return self._verts_uvs_padded
 
@@ -1103,7 +1132,9 @@ class TexturesUV(TexturesBase):
                 # The number of vertices in the mesh and in verts_uvs can differ
                 # e.g. if a vertex is shared between 3 faces, it can
                 # have up to 3 different uv coordinates.
+                # pyrefly: ignore [bad-assignment, missing-attribute]
                 self._verts_uvs_list = list(self._verts_uvs_padded.unbind(0))
+        # pyrefly: ignore [bad-return]
         return self._verts_uvs_list
 
     def maps_ids_padded(self) -> Optional[torch.Tensor]:
@@ -1111,8 +1142,10 @@ class TexturesUV(TexturesBase):
 
     def maps_ids_list(self) -> Optional[List[torch.Tensor]]:
         if self._maps_ids_list is not None:
+            # pyrefly: ignore [bad-return]
             return self._maps_ids_list
         elif self._maps_ids_padded is not None:
+            # pyrefly: ignore [bad-return]
             return self._maps_ids_padded.unbind(0)
         else:
             return None
@@ -1124,6 +1157,7 @@ class TexturesUV(TexturesBase):
     def maps_list(self) -> List[torch.Tensor]:
         if self._maps_list is not None:
             return self._maps_list
+        # pyrefly: ignore [bad-return]
         return self._maps_padded.unbind(0)
 
     def extend(self, N: int) -> "TexturesUV":
@@ -1147,6 +1181,7 @@ class TexturesUV(TexturesBase):
             sampling_mode=self.sampling_mode,
         )
 
+        # pyrefly: ignore [bad-assignment]
         new_tex._num_faces_per_mesh = new_props["_num_faces_per_mesh"]
         return new_tex
 
@@ -1237,7 +1272,8 @@ class TexturesUV(TexturesBase):
             texels = texels.reshape(N, K, C, H_out, W_out).permute(0, 3, 4, 1, 2)
             return texels
         else:
-            # We have maps_ids_padded: (N, F), textures_map: (N, M, Hi, Wi, C),fragmenmts.pix_to_face: (N, Ho, Wo, K)
+            # We have maps_ids_padded: (N, F), textures_map: (N, M, Hi, Wi, C),
+            # fragments.pix_to_face: (N, Ho, Wo, K)
             # Get pixel_to_map_ids: (N, K, Ho, Wo) by indexing pix_to_face into maps_ids
             N, M, H_in, W_in, C = texture_maps.shape  # 3 for RGB
 
@@ -1248,8 +1284,9 @@ class TexturesUV(TexturesBase):
             pixel_to_map_ids = (
                 maps_ids_padded.flatten()
                 .gather(0, pix_to_face.flatten())
-                .view(N, K, H_out, W_out)
-            )
+                .view(N, H_out, W_out, K, 1)
+                .permute(0, 3, 1, 2, 4)
+            )  # N x H_out x W_out x K x 1
 
             # Normalize between -1 and 1 with M (number of maps)
             pixel_to_map_ids = (2.0 * pixel_to_map_ids.float() / float(M - 1)) - 1
@@ -1258,10 +1295,10 @@ class TexturesUV(TexturesBase):
                 pixel_uvs.new_tensor([-1.0, 1.0]),
                 pixel_uvs.new_tensor([1.0, -1.0]),
                 pixel_uvs,
-            )
+            )  # N x H_out x W_out x K x 2
 
             # N x H_out x W_out x K x 3
-            pixel_uvms = torch.cat((pixel_uvs, pixel_to_map_ids.unsqueeze(4)), dim=4)
+            pixel_uvms = torch.cat((pixel_uvs, pixel_to_map_ids), dim=4)
             # (N, M, H, W, C) -> (N, C, M, H, W)
             texture_maps = texture_maps.permute(0, 4, 1, 2, 3)
             if texture_maps.device != pixel_uvs.device:
@@ -1653,7 +1690,7 @@ class TexturesUV(TexturesBase):
             raise NotImplementedError("This function does not support multiple maps.")
         if len(faces_ids_list) != len(self.faces_uvs_padded()):
             raise IndexError(
-                "faces_uvs_padded must be of " "the same length as face_ids_list."
+                "faces_uvs_padded must be of the same length as face_ids_list."
             )
 
         sub_faces_uvs, sub_verts_uvs, sub_maps = [], [], []
@@ -1718,6 +1755,7 @@ class TexturesVertex(TexturesBase):
                 msg = "Expected verts_features to be of shape (N, V, C); got %r"
                 raise ValueError(msg % repr(verts_features.shape))
             self._verts_features_padded = verts_features
+            # pyrefly: ignore [bad-assignment]
             self._verts_features_list = None
             self.device = verts_features.device
 
@@ -1765,9 +1803,11 @@ class TexturesVertex(TexturesBase):
                 )
             new_tex = self.__class__(verts_features=verts_features)
         elif torch.is_tensor(verts_features):
+            # pyrefly: ignore [bad-argument-type]
             new_tex = self.__class__(verts_features=[verts_features])
         else:
             raise ValueError("Not all values are provided in the correct format")
+        # pyrefly: ignore [bad-assignment]
         new_tex._num_verts_per_mesh = new_props["_num_verts_per_mesh"]
         return new_tex
 
@@ -1779,7 +1819,9 @@ class TexturesVertex(TexturesBase):
                 )
             else:
                 self._verts_features_padded = list_to_padded(
-                    self._verts_features_list, pad_value=0.0
+                    # pyrefly: ignore [bad-argument-type]
+                    self._verts_features_list,
+                    pad_value=0.0,
                 )
         return self._verts_features_padded
 
@@ -1790,9 +1832,13 @@ class TexturesVertex(TexturesBase):
                     torch.empty((0, 3), dtype=torch.float32, device=self.device)
                 ] * self._N
             else:
+                # pyrefly: ignore [bad-assignment]
                 self._verts_features_list = padded_to_list(
-                    self._verts_features_padded, split_size=self._num_verts_per_mesh
+                    # pyrefly: ignore [bad-argument-type]
+                    self._verts_features_padded,
+                    split_size=self._num_verts_per_mesh,
                 )
+        # pyrefly: ignore [bad-return]
         return self._verts_features_list
 
     def verts_features_packed(self) -> torch.Tensor:
@@ -1804,6 +1850,7 @@ class TexturesVertex(TexturesBase):
     def extend(self, N: int) -> "TexturesVertex":
         new_props = self._extend(N, ["verts_features_padded", "_num_verts_per_mesh"])
         new_tex = self.__class__(verts_features=new_props["verts_features_padded"])
+        # pyrefly: ignore [bad-assignment]
         new_tex._num_verts_per_mesh = new_props["_num_verts_per_mesh"]
         return new_tex
 
@@ -1826,7 +1873,7 @@ class TexturesVertex(TexturesBase):
                 representation) which overlap the pixel.
 
         Returns:
-            texels: An texture per pixel of shape (N, H, W, K, C).
+            texels: A texture per pixel of shape (N, H, W, K, C).
             There will be one C dimensional value for each element in
             fragments.pix_to_face.
         """
@@ -1867,7 +1914,7 @@ class TexturesVertex(TexturesBase):
         """
         if len(vertex_ids_list) != len(self.verts_features_list()):
             raise IndexError(
-                "verts_features_list must be of " "the same length as vertex_ids_list."
+                "verts_features_list must be of the same length as vertex_ids_list."
             )
 
         sub_features = []

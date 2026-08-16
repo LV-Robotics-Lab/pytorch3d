@@ -52,8 +52,7 @@ def quaternion_to_matrix(quaternions: torch.Tensor) -> torch.Tensor:
         Rotation matrices as tensor of shape (..., 3, 3).
     """
     r, i, j, k = torch.unbind(quaternions, -1)
-    # pyre-fixme[58]: `/` is not supported for operand types `float` and `Tensor`.
-    two_s = 2.0 / (quaternions * quaternions).sum(-1)
+    two_s = torch.div(2.0, (quaternions * quaternions).sum(-1))
 
     o = torch.stack(
         (
@@ -95,13 +94,9 @@ def _sqrt_positive_part(x: torch.Tensor) -> torch.Tensor:
     Returns torch.sqrt(torch.max(0, x))
     but with a zero subgradient where x is 0.
     """
-    ret = torch.zeros_like(x)
     positive_mask = x > 0
-    if torch.is_grad_enabled():
-        ret[positive_mask] = torch.sqrt(x[positive_mask])
-    else:
-        ret = torch.where(positive_mask, torch.sqrt(x), ret)
-    return ret
+    safe_x = torch.where(positive_mask, x, 1.0)
+    return torch.where(positive_mask, torch.sqrt(safe_x), 0.0)
 
 
 def matrix_to_quaternion(matrix: torch.Tensor) -> torch.Tensor:
@@ -137,18 +132,18 @@ def matrix_to_quaternion(matrix: torch.Tensor) -> torch.Tensor:
     # we produce the desired quaternion multiplied by each of r, i, j, k
     quat_by_rijk = torch.stack(
         [
-            # pyre-fixme[58]: `**` is not supported for operand types `Tensor` and
-            #  `int`.
-            torch.stack([q_abs[..., 0] ** 2, m21 - m12, m02 - m20, m10 - m01], dim=-1),
-            # pyre-fixme[58]: `**` is not supported for operand types `Tensor` and
-            #  `int`.
-            torch.stack([m21 - m12, q_abs[..., 1] ** 2, m10 + m01, m02 + m20], dim=-1),
-            # pyre-fixme[58]: `**` is not supported for operand types `Tensor` and
-            #  `int`.
-            torch.stack([m02 - m20, m10 + m01, q_abs[..., 2] ** 2, m12 + m21], dim=-1),
-            # pyre-fixme[58]: `**` is not supported for operand types `Tensor` and
-            #  `int`.
-            torch.stack([m10 - m01, m20 + m02, m21 + m12, q_abs[..., 3] ** 2], dim=-1),
+            torch.stack(
+                [torch.square(q_abs[..., 0]), m21 - m12, m02 - m20, m10 - m01], dim=-1
+            ),
+            torch.stack(
+                [m21 - m12, torch.square(q_abs[..., 1]), m10 + m01, m02 + m20], dim=-1
+            ),
+            torch.stack(
+                [m02 - m20, m10 + m01, torch.square(q_abs[..., 2]), m12 + m21], dim=-1
+            ),
+            torch.stack(
+                [m10 - m01, m20 + m02, m21 + m12, torch.square(q_abs[..., 3])], dim=-1
+            ),
         ],
         dim=-2,
     )
@@ -160,9 +155,10 @@ def matrix_to_quaternion(matrix: torch.Tensor) -> torch.Tensor:
 
     # if not for numerical problems, quat_candidates[i] should be same (up to a sign),
     # forall i; we pick the best-conditioned one (with the largest denominator)
-    out = quat_candidates[
-        F.one_hot(q_abs.argmax(dim=-1), num_classes=4) > 0.5, :
-    ].reshape(batch_dim + (4,))
+    indices = q_abs.argmax(dim=-1, keepdim=True)
+    expand_dims = list(batch_dim) + [1, 4]
+    gather_indices = indices.unsqueeze(-1).expand(expand_dims)
+    out = torch.gather(quat_candidates, -2, gather_indices).squeeze(-2)
     return standardize_quaternion(out)
 
 
@@ -293,10 +289,11 @@ def matrix_to_euler_angles(matrix: torch.Tensor, convention: str) -> torch.Tenso
     tait_bryan = i0 != i2
     if tait_bryan:
         central_angle = torch.asin(
-            matrix[..., i0, i2] * (-1.0 if i0 - i2 in [-1, 2] else 1.0)
+            torch.clamp(matrix[..., i0, i2], -1.0, 1.0)
+            * (-1.0 if i0 - i2 in [-1, 2] else 1.0)
         )
     else:
-        central_angle = torch.acos(matrix[..., i0, i0])
+        central_angle = torch.acos(torch.clamp(matrix[..., i0, i0], -1.0, 1.0))
 
     o = (
         _angle_from_tan(
@@ -463,7 +460,7 @@ def quaternion_apply(quaternion: torch.Tensor, point: torch.Tensor) -> torch.Ten
     return out[..., 1:]
 
 
-def axis_angle_to_matrix(axis_angle: torch.Tensor) -> torch.Tensor:
+def axis_angle_to_matrix(axis_angle: torch.Tensor, fast: bool = False) -> torch.Tensor:
     """
     Convert rotations given as axis/angle to rotation matrices.
 
@@ -472,27 +469,91 @@ def axis_angle_to_matrix(axis_angle: torch.Tensor) -> torch.Tensor:
             as a tensor of shape (..., 3), where the magnitude is
             the angle turned anticlockwise in radians around the
             vector's direction.
+        fast: Whether to use the new faster implementation (based on the
+            Rodrigues formula) instead of the original implementation (which
+            first converted to a quaternion and then back to a rotation matrix).
 
     Returns:
         Rotation matrices as tensor of shape (..., 3, 3).
     """
-    return quaternion_to_matrix(axis_angle_to_quaternion(axis_angle))
+    if not fast:
+        return quaternion_to_matrix(axis_angle_to_quaternion(axis_angle))
+
+    shape = axis_angle.shape
+    device, dtype = axis_angle.device, axis_angle.dtype
+
+    angles = torch.norm(axis_angle, p=2, dim=-1, keepdim=True).unsqueeze(-1)
+
+    rx, ry, rz = axis_angle[..., 0], axis_angle[..., 1], axis_angle[..., 2]
+    zeros = torch.zeros(shape[:-1], dtype=dtype, device=device)
+    cross_product_matrix = torch.stack(
+        [zeros, -rz, ry, rz, zeros, -rx, -ry, rx, zeros], dim=-1
+    ).view(shape + (3,))
+    cross_product_matrix_sqrd = cross_product_matrix @ cross_product_matrix
+
+    identity = torch.eye(3, dtype=dtype, device=device)
+    angles_sqrd = angles * angles
+    angles_sqrd = torch.where(angles_sqrd == 0, 1, angles_sqrd)
+    return (
+        identity.expand(cross_product_matrix.shape)
+        + torch.sinc(angles / torch.pi) * cross_product_matrix
+        + ((1 - torch.cos(angles)) / angles_sqrd) * cross_product_matrix_sqrd
+    )
 
 
-def matrix_to_axis_angle(matrix: torch.Tensor) -> torch.Tensor:
+def matrix_to_axis_angle(matrix: torch.Tensor, fast: bool = False) -> torch.Tensor:
     """
     Convert rotations given as rotation matrices to axis/angle.
 
     Args:
         matrix: Rotation matrices as tensor of shape (..., 3, 3).
+        fast: Whether to use the new faster implementation (based on the
+            Rodrigues formula) instead of the original implementation (which
+            first converted to a quaternion and then back to a rotation matrix).
 
     Returns:
         Rotations given as a vector in axis angle form, as a tensor
             of shape (..., 3), where the magnitude is the angle
             turned anticlockwise in radians around the vector's
             direction.
+
     """
-    return quaternion_to_axis_angle(matrix_to_quaternion(matrix))
+    if not fast:
+        return quaternion_to_axis_angle(matrix_to_quaternion(matrix))
+
+    if matrix.size(-1) != 3 or matrix.size(-2) != 3:
+        raise ValueError(f"Invalid rotation matrix shape {matrix.shape}.")
+
+    omegas = torch.stack(
+        [
+            matrix[..., 2, 1] - matrix[..., 1, 2],
+            matrix[..., 0, 2] - matrix[..., 2, 0],
+            matrix[..., 1, 0] - matrix[..., 0, 1],
+        ],
+        dim=-1,
+    )
+    norms = torch.norm(omegas, p=2, dim=-1, keepdim=True)
+    traces = torch.diagonal(matrix, dim1=-2, dim2=-1).sum(-1).unsqueeze(-1)
+    angles = torch.atan2(norms, traces - 1)
+
+    zeros = torch.zeros(3, dtype=matrix.dtype, device=matrix.device)
+    omegas = torch.where(torch.isclose(angles, torch.zeros_like(angles)), zeros, omegas)
+
+    near_pi = angles.isclose(angles.new_full((1,), torch.pi)).squeeze(-1)
+
+    axis_angles = torch.empty_like(omegas)
+    axis_angles[~near_pi] = (
+        0.5 * omegas[~near_pi] / torch.sinc(angles[~near_pi] / torch.pi)
+    )
+
+    # this derives from: nnT = (R + 1) / 2
+    n = 0.5 * (
+        matrix[near_pi][..., 0, :]
+        + torch.eye(1, 3, dtype=matrix.dtype, device=matrix.device)
+    )
+    axis_angles[near_pi] = angles[near_pi] * n / torch.norm(n)
+
+    return axis_angles
 
 
 def axis_angle_to_quaternion(axis_angle: torch.Tensor) -> torch.Tensor:
@@ -509,22 +570,10 @@ def axis_angle_to_quaternion(axis_angle: torch.Tensor) -> torch.Tensor:
         quaternions with real part first, as tensor of shape (..., 4).
     """
     angles = torch.norm(axis_angle, p=2, dim=-1, keepdim=True)
-    half_angles = angles * 0.5
-    eps = 1e-6
-    small_angles = angles.abs() < eps
-    sin_half_angles_over_angles = torch.empty_like(angles)
-    sin_half_angles_over_angles[~small_angles] = (
-        torch.sin(half_angles[~small_angles]) / angles[~small_angles]
+    sin_half_angles_over_angles = 0.5 * torch.sinc(angles * 0.5 / torch.pi)
+    return torch.cat(
+        [torch.cos(angles * 0.5), axis_angle * sin_half_angles_over_angles], dim=-1
     )
-    # for x small, sin(x/2) is about x/2 - (x/2)^3/6
-    # so sin(x/2)/x is about 1/2 - (x*x)/48
-    sin_half_angles_over_angles[small_angles] = (
-        0.5 - (angles[small_angles] * angles[small_angles]) / 48
-    )
-    quaternions = torch.cat(
-        [torch.cos(half_angles), axis_angle * sin_half_angles_over_angles], dim=-1
-    )
-    return quaternions
 
 
 def quaternion_to_axis_angle(quaternions: torch.Tensor) -> torch.Tensor:
@@ -543,18 +592,9 @@ def quaternion_to_axis_angle(quaternions: torch.Tensor) -> torch.Tensor:
     """
     norms = torch.norm(quaternions[..., 1:], p=2, dim=-1, keepdim=True)
     half_angles = torch.atan2(norms, quaternions[..., :1])
-    angles = 2 * half_angles
-    eps = 1e-6
-    small_angles = angles.abs() < eps
-    sin_half_angles_over_angles = torch.empty_like(angles)
-    sin_half_angles_over_angles[~small_angles] = (
-        torch.sin(half_angles[~small_angles]) / angles[~small_angles]
-    )
-    # for x small, sin(x/2) is about x/2 - (x/2)^3/6
-    # so sin(x/2)/x is about 1/2 - (x*x)/48
-    sin_half_angles_over_angles[small_angles] = (
-        0.5 - (angles[small_angles] * angles[small_angles]) / 48
-    )
+    sin_half_angles_over_angles = 0.5 * torch.sinc(half_angles / torch.pi)
+    # angles/2 are between [-pi/2, pi/2], thus sin_half_angles_over_angles
+    # can't be zero
     return quaternions[..., 1:] / sin_half_angles_over_angles
 
 

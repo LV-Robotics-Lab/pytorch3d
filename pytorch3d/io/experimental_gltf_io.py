@@ -120,6 +120,7 @@ class _TargetType(IntEnum):
 
 
 class OurEncoder(json.JSONEncoder):
+    # pyrefly: ignore [bad-override-param-name]
     def default(self, obj):
         if isinstance(obj, np.int64):
             return str(obj)
@@ -163,9 +164,8 @@ def _read_chunks(
     if binary_data is not None:
         binary_data = np.frombuffer(binary_data, dtype=np.uint8)
 
-    # pyre-fixme[7]: Expected `Optional[Tuple[Dict[str, typing.Any],
-    #  ndarray[typing.Any, typing.Any]]]` but got `Tuple[typing.Any,
-    #  Optional[ndarray[typing.Any, dtype[typing.Any]]]]`.
+    assert binary_data is not None
+
     return json_data, binary_data
 
 
@@ -243,6 +243,7 @@ class _GLTFLoader:
         by _get_texture_map_image which caches it.
         """
 
+        # pyrefly: ignore [unsupported-operation]
         image_json = self._json_data["images"][image_index]
         buffer_view = self._buffer_views[image_json["bufferView"]]
         if "byteStride" in buffer_view:
@@ -408,10 +409,12 @@ class _GLTFLoader:
             verts_uvs[:, 1] = 1 - verts_uvs[:, -1]
             faces_uvs = indices
             material_index = primitive.get("material", 0)
+            # pyrefly: ignore [unsupported-operation]
             material = self._json_data["materials"][material_index]
             material_roughness = material["pbrMetallicRoughness"]
             if "baseColorTexture" in material_roughness:
                 texture_index = material_roughness["baseColorTexture"]["index"]
+                # pyrefly: ignore [unsupported-operation]
                 texture_json = self._json_data["textures"][texture_index]
                 # Todo - include baseColorFactor when also given
                 # Todo - look at the sampler
@@ -556,6 +559,7 @@ class _GLTFWriter:
         # pyre-fixme[6]: Incompatible parameter type
         self._json_data["scene"] = scene_index
         self._json_data["scenes"].append({"nodes": [scene_index]})
+        # pyrefly: ignore [unsupported-operation]
         self._json_data["asset"] = {"version": "2.0"}
         node = {"name": "Node", "mesh": 0}
         self._json_data["nodes"].append(node)
@@ -622,6 +626,7 @@ class _GLTFWriter:
             byte_per_element = 3 * _DTYPE_BYTES[_ITEM_TYPES[_ComponentType.FLOAT]]
         elif key == "texcoords":
             component_type = _ComponentType.FLOAT
+            # pyrefly: ignore [missing-attribute]
             data = self.mesh.textures.verts_uvs_list()[0].cpu().numpy()
             data[:, 1] = 1 - data[:, -1]  # flip y tex-coordinate
             element_type = "VEC2"
@@ -631,6 +636,7 @@ class _GLTFWriter:
             byte_per_element = 2 * _DTYPE_BYTES[_ITEM_TYPES[_ComponentType.FLOAT]]
         elif key == "texvertices":
             component_type = _ComponentType.FLOAT
+            # pyrefly: ignore [missing-attribute]
             data = self.mesh.textures.verts_features_list()[0].cpu().numpy()
             element_type = "VEC3"
             buffer_view = 2
@@ -701,11 +707,14 @@ class _GLTFWriter:
             target = _TargetType.ELEMENT_ARRAY_BUFFER
 
         bufferview["target"] = target
+        # pyrefly: ignore [bad-assignment]
         bufferview["byteOffset"] = kwargs.get("offset")
+        # pyrefly: ignore [bad-assignment]
         bufferview["byteLength"] = kwargs.get("byte_length")
         self._json_data["bufferViews"].append(bufferview)
 
     def _write_image_buffer(self, **kwargs) -> Tuple[int, bytes]:
+        # pyrefly: ignore [missing-attribute]
         image_np = self.mesh.textures.maps_list()[0].cpu().numpy()
         image_array = (image_np * 255.0).astype(np.uint8)
         im = Image.fromarray(image_array)
@@ -717,6 +726,7 @@ class _GLTFWriter:
         bufferview_image = {
             "buffer": 0,
         }
+        # pyrefly: ignore [bad-assignment]
         bufferview_image["byteOffset"] = kwargs.get("offset")
         bufferview_image["byteLength"] = image_data_byte_length
         self._json_data["bufferViews"].append(bufferview_image)

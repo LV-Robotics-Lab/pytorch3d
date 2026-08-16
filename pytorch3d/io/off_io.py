@@ -14,6 +14,7 @@ meshes as .off files.
 This format is introduced, for example, at
 http://www.geomview.org/docs/html/OFF.html .
 """
+
 import warnings
 from typing import cast, Optional, Tuple, Union
 
@@ -84,7 +85,7 @@ def _read_faces_lump(
             )
             data = np.loadtxt(file, dtype=np.float32, ndmin=2, max_rows=n_faces)
     except ValueError as e:
-        if n_faces > 1 and "Wrong number of columns" in e.args[0]:
+        if n_faces > 1 and "number of columns" in e.args[0]:
             file.seek(old_offset)
             return None
         raise ValueError("Not enough face data.") from None

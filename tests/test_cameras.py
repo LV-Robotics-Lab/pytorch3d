@@ -60,7 +60,6 @@ from pytorch3d.transforms.rotation_conversions import random_rotations
 from pytorch3d.transforms.so3 import so3_exp_map
 
 from .common_camera_utils import init_random_cameras
-
 from .common_testing import TestCaseMixin
 
 
@@ -495,8 +494,8 @@ class TestCamerasCommon(TestCaseMixin, unittest.TestCase):
             screen_cam_params["image_size"] = image_size
             screen_cam_params["focal_length"] = fcl * scale
             screen_cam_params["principal_point"] = (
-                image_size[:, [1, 0]]
-            ) / 2.0 - prc * scale
+                (image_size[:, [1, 0]]) / 2.0 - prc * scale
+            )
             screen_cam_params["in_ndc"] = False
         else:
             raise ValueError(str(cam_type))
@@ -615,7 +614,6 @@ class TestCamerasCommon(TestCaseMixin, unittest.TestCase):
             OrthographicCameras,
             PerspectiveCameras,
         ):
-
             # init the cameras
             cameras = init_random_cameras(cam_type, batch_size)
             # xyz - the ground truth point cloud

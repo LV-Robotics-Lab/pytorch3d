@@ -67,12 +67,14 @@ class TensorAccessor(nn.Module):
         if (
             v.dim() == 0
             and isinstance(self.index, slice)
-            and len(value) != len(self.index)
+            and len(value) != len(self.index)  # pyrefly: ignore [bad-argument-type]
         ):
             msg = "Expected value to have len %r; got %r"
+            # pyrefly: ignore [bad-argument-type]
             raise ValueError(msg % (len(self.index), len(value)))
         self.class_object.__dict__[name][self.index] = value
 
+    # pyrefly: ignore [bad-override]
     def __getattr__(self, name: str):
         """
         Return the value of the attribute given by "name" on self.class_object
@@ -85,6 +87,7 @@ class TensorAccessor(nn.Module):
             return self.class_object.__dict__[name][self.index]
         else:
             msg = "Attribute %s not found on %r"
+            # pyrefly: ignore [missing-attribute]
             return AttributeError(msg % (name, self.class_object.__name__))
 
 
@@ -114,7 +117,6 @@ class TensorProperties(nn.Module):
         self.device = make_device(device)
         self._N = 0
         if kwargs is not None:
-
             # broadcast all inputs which are float/int/list/tuple/tensor/array
             # set as attributes anything else e.g. strings, bools
             args_to_broadcast = {}
@@ -270,9 +272,7 @@ class TensorProperties(nn.Module):
                         # to have the same shape as the input tensor.
                         new_dims = len(tensor_dims) - len(idx_dims)
                         new_shape = idx_dims + (1,) * new_dims
-                        # pyre-fixme[58]: `+` is not supported for operand types
-                        # `Tuple[int]` and `torch._C.Size`
-                        expand_dims = (-1,) + tensor_dims[1:]
+                        expand_dims = (-1,) + tuple(tensor_dims[1:])
                         _batch_idx = _batch_idx.view(*new_shape)
                         _batch_idx = _batch_idx.expand(*expand_dims)
 
@@ -439,7 +439,7 @@ def ndc_to_grid_sample_coords(
 
 
 def parse_image_size(
-    image_size: Union[List[int], Tuple[int, int], int]
+    image_size: Union[List[int], Tuple[int, int], int],
 ) -> Tuple[int, int]:
     """
     Args:
@@ -459,4 +459,5 @@ def parse_image_size(
         raise ValueError("Image sizes must be greater than 0; got %d, %d" % image_size)
     if not all(isinstance(i, int) for i in image_size):
         raise ValueError("Image sizes must be integers; got %f, %f" % image_size)
+    # pyrefly: ignore [bad-return]
     return tuple(image_size)
